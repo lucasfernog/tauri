@@ -1,5 +1,6 @@
 use attohttpc;
 use serde::Serialize;
+use std::boxed::Box;
 
 use std::io::{BufWriter, Write};
 
@@ -17,7 +18,7 @@ pub fn post_as_json<T: Serialize>(url: String, payload: &T) -> crate::Result<att
   Ok(response)
 }
 
-pub fn download<T: Write>(url: String, dest: T, _display_progress: bool) -> crate::Result<()> {
+pub fn download<T: Write>(url: String, dest: T, _display_progress: &Option<Box<dyn Fn(f32)>>) -> crate::Result<()> {
   set_ssl_vars!();
 
   let resp = get(url)?;

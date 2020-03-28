@@ -1,7 +1,7 @@
 [package]
 name = "tauri-updater"
-version = "0.4.1"
-authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
+version = "0.5.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
@@ -10,7 +10,7 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-attohttpc = {version = "0.10.1", features=["json", "compress" ]}
+attohttpc = { version = "0.10.1", features = ["json", "compress"] }
 # pbr = "1"
 serde_json = "1.0"
 serde = "1.0"

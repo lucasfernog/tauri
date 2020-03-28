@@ -12,56 +12,25 @@ struct Reply {
   data: String
 }
 
-fn main() {
-  tauri::AppBuilder::new()
-    .setup(|webview, _source| {
-      let handle = webview.handle();
-      tauri::event::listen(String::from("js-event"), move |msg| {
-        println!("got js-event with message '{:?}'", msg);
-        let reply = Reply {
-          data: "something else".to_string(),
-        };
+struct DummyBackend {}
+impl tauri_updater::updater::Backend for DummyBackend {
+  fn is_uptodate(&self, version: String) -> Result<bool, String> {
+    Ok(false)
+  }
+  fn update_url(&self, version: String) -> Result<String, String> {
+    Ok("https://github.com/jaemk/self_update/releases/download/v9.9.10/self_update-v9.9.10-x86_64-unknown-linux-gnu.tar.gz".to_string())
+  }
+}
 
-        tauri::event::emit(
-          &handle,
-          String::from("rust-event"),
-          Some(serde_json::to_string(&reply).unwrap()),
-        );
-      });
-    })
-    .invoke_handler(|_webview, arg| {
-      use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
-        Err(e) => {
-          Err(e.to_string())
-        }
-        Ok(command) => {
-          match command {
-            LogOperation { event, payload } => {
-              println!("{} {:?}", event, payload);
-            },
-            PerformRequest { endpoint, body, callback, error } => {
-              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
-              // so you can easily communicate between JS and Rust with promises
-              tauri::execute_promise(
-                _webview,
-                move || {
-                  println!("{} {:?}", endpoint, body);
-                  // perform an async operation here
-                  // if the returned value is Ok, the promise will be resolved with its value
-                  // if the returned value is Err, the promise will be rejected with its value
-                  // the value is a string that will be eval'd
-                  Ok("{ key: 'response', value: [{ id: 3 }] }".to_string())
-                },
-                callback,
-                error
-              )
-            },
-          }
-          Ok(())
-        }
-      }
-    })
-    .build()
-    .run();
+fn test_download() {
+  let backend = DummyBackend {};
+  let mut updater = tauri_updater::updater::UpdaterBuilder::new();
+  updater = updater.current_version("1.3.0");
+  updater = updater.bin_name("app.tar.gz");
+  updater = updater.backend(backend);
+  updater.build().unwrap().update().unwrap();
+}
+
+fn main() {
+  test_download();
 }
