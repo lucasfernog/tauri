@@ -1,5 +1,5 @@
-use std::env;
 use std::boxed::Box;
+use std::env;
 
 use crate::http;
 
@@ -165,12 +165,10 @@ impl Updater {
 
     self.println("Downloading...");
     let downloader = http::Download::from_url(download_url.clone());
-    let tmp_archive_path = downloader
-      .download_to(&tmp_dir.path())?;
+    let tmp_archive_path = downloader.download_to(&tmp_dir.path())?;
 
     self.print_flush("Extracting archive... ")?;
-    Extract::from_source(&tmp_archive_path)
-      .extract_into(&tmp_dir.path())?;
+    Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
     let new_exe = tmp_dir.path();
     self.println("Done");
 
