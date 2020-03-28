@@ -10,7 +10,7 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-attohttpc = { version = "0.10.1", features = ["json", "compress"] }
+reqwest = { version = "0.10", features = ["blocking"] }
 # pbr = "1"
 serde_json = "1.0"
 serde = "1.0"
@@ -19,3 +19,4 @@ tempdir = "0.3"
 error-chain = "0.12.1"
 tauri-api = { version = "0.4", path = "../tauri-api" }
 tauri-utils = { version = "0.4", path = "../tauri-utils" }
+regex = "1.3"

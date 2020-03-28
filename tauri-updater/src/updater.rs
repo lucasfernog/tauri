@@ -1,6 +1,4 @@
 use std::env;
-use std::fs;
-use std::path::PathBuf;
 use std::boxed::Box;
 
 use crate::http;
@@ -164,20 +162,15 @@ impl Updater {
       .ok_or_else(|| crate::ErrorKind::Updater("Failed to determine parent dir".into()))?;
     let tmp_dir =
       tempdir::TempDir::new_in(&tmp_dir_parent, &format!("{}_download", self.bin_name))?;
-    let tmp_archive_path = tmp_dir.path().join(&self.bin_name);
-    let mut tmp_archive = fs::File::create(&tmp_archive_path)?;
 
     self.println("Downloading...");
-    http::download(
-      download_url.clone(),
-      &mut tmp_archive,
-      &self.on_progress,
-    )?;
+    let downloader = http::Download::from_url(download_url.clone());
+    let tmp_archive_path = downloader
+      .download_to(&tmp_dir.path())?;
 
     self.print_flush("Extracting archive... ")?;
     Extract::from_source(&tmp_archive_path)
       .extract_into(&tmp_dir.path())?;
-    println!("{:?}", tmp_dir);
     let new_exe = tmp_dir.path();
     self.println("Done");
 

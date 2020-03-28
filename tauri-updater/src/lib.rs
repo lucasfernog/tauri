@@ -11,7 +11,8 @@ error_chain! {
         Json(::serde_json::Error);
         Zip(::zip::result::ZipError);
         API(::tauri_api::Error);
-        HTTP(::attohttpc::Error);
+        Reqwest(::reqwest::Error);
+        Regex(::regex::Error);
     }
     errors{
         Download(t: String) {

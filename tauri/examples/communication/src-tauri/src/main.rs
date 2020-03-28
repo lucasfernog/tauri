@@ -26,7 +26,7 @@ fn test_download() {
   let backend = DummyBackend {};
   let mut updater = tauri_updater::updater::UpdaterBuilder::new();
   updater = updater.current_version("1.3.0");
-  updater = updater.bin_name("app.tar.gz");
+  updater = updater.bin_name("app");
   updater = updater.backend(backend);
   updater.build().unwrap().update().unwrap();
 }
