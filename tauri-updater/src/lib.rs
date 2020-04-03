@@ -13,6 +13,7 @@ error_chain! {
         API(::tauri_api::Error);
         Reqwest(::reqwest::Error);
         Regex(::regex::Error);
+        Utf8(::std::str::Utf8Error);
     }
     errors{
         Download(t: String) {

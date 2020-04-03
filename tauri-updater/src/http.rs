@@ -1,16 +1,16 @@
 use regex::Regex;
 use reqwest::{self, header};
+use std::boxed::Box;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub struct Download {
+pub struct Download<'a> {
   url: String,
   headers: reqwest::header::HeaderMap,
-  on_progress: Option<Box<dyn Fn(f32)>>,
+  on_progress: Option<Box<dyn Fn(f64) + 'a>>,
 }
-impl Download {
+impl<'a> Download<'a> {
   /// Specify download url
   pub fn from_url(url: String) -> Self {
     Self {
@@ -26,7 +26,7 @@ impl Download {
     self
   }
 
-  pub fn on_progress<F: Fn(f32) + 'static>(&mut self, handler: F) -> Self {
+  pub fn on_progress<F: Fn(f64) + 'a>(&mut self, handler: F) -> &mut Self {
     self.on_progress = Some(Box::new(handler));
     self
   }
@@ -41,7 +41,7 @@ impl Download {
   ///     * Progress-bar errors
   ///     * Reading from response to `BufReader`-buffer
   ///     * Writing from `BufReader`-buffer to `File`
-  pub fn download_to(&self, dest_dir: &Path) -> crate::Result<PathBuf> {
+  pub fn download_to(self, dest_dir: &Path) -> crate::Result<(String, PathBuf)> {
     use io::BufRead;
     let mut headers = self.headers.clone();
     if !headers.contains_key(header::USER_AGENT) {
@@ -83,8 +83,9 @@ impl Download {
       let mut iter = re.captures_iter(content_disposition_str);
       match iter.next() {
         Some(filename) => {
+          let filename = &filename[1].to_string();
           let mut dest_path = dest_dir.to_path_buf();
-          dest_path.push(&filename[1]);
+          dest_path.push(filename);
           let mut dest = fs::File::create(&dest_path)?;
 
           let mut src = io::BufReader::new(resp);
@@ -100,10 +101,13 @@ impl Download {
             }
             src.consume(n);
             downloaded = std::cmp::min(downloaded + n as u64, size);
+            if let Some(on_progress) = &self.on_progress {
+              on_progress(downloaded as f64 / size as f64);
+            }
 
             // TODO send downloaded as progress
           }
-          Ok(dest_path)
+          Ok((filename.to_string(), dest_path))
         }
         None => bail!(
           crate::ErrorKind::Download,

@@ -1,5 +1,6 @@
 use std::boxed::Box;
 use std::env;
+use std::path::PathBuf;
 
 use crate::http;
 
@@ -54,7 +55,7 @@ pub struct Release {
 pub struct UpdaterBuilder {
   bin_name: Option<String>,
   current_version: Option<String>,
-  on_progress: Option<Box<dyn Fn(f32)>>,
+  on_progress: Option<Box<dyn Fn(f64)>>,
   backend: Option<Box<dyn Backend>>,
 }
 
@@ -77,7 +78,7 @@ impl UpdaterBuilder {
     self
   }
 
-  pub fn on_progress<F: Fn(f32) + 'static>(mut self, handler: F) -> Self {
+  pub fn on_progress<F: Fn(f64) + 'static>(mut self, handler: F) -> Self {
     self.on_progress = Some(Box::new(handler));
     self
   }
@@ -117,7 +118,7 @@ impl UpdaterBuilder {
 pub struct Updater {
   bin_name: String,
   current_version: String,
-  on_progress: Option<Box<dyn Fn(f32)>>,
+  on_progress: Option<Box<dyn Fn(f64)>>,
   backend: Box<dyn Backend>,
 }
 
@@ -164,20 +165,72 @@ impl Updater {
       tempdir::TempDir::new_in(&tmp_dir_parent, &format!("{}_download", self.bin_name))?;
 
     self.println("Downloading...");
-    let downloader = http::Download::from_url(download_url.clone());
-    let tmp_archive_path = downloader.download_to(&tmp_dir.path())?;
+    let mut downloader = http::Download::from_url(download_url.clone());
+    if let Some(ref on_progress) = self.on_progress {
+      downloader.on_progress(on_progress);
+    }
 
-    self.print_flush("Extracting archive... ")?;
-    Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
-    let new_exe = tmp_dir.path();
-    self.println("Done");
+    let (filename, downloaded_path) = downloader.download_to(&tmp_dir.path())?;
+    if is_download_installable(filename.clone()) {
+      install_update(downloaded_path)?;
+    } else if is_download_valid(downloaded_path.clone()) {
+       self.print_flush("Extracting archive... ")?;
+      let extract_path = tmp_dir.path().join("extracted");
+      Extract::from_source(&downloaded_path).extract_into(&extract_path)?;
+      let entries = std::fs::read_dir(extract_path)?
+        .map(|res| res.map(|e| e.path()))
+        .collect::<Result<Vec<_>, std::io::Error>>()?;
+      match entries.first() {
+        Some(entry) => {
+          install_update(entry.to_path_buf())?;
+        },
+        None => {
+          bail!(
+            crate::ErrorKind::Updater,
+            "can't read extracted dir"
+          )
+        }
+      }
+    } else {
+      bail!(
+        crate::ErrorKind::Updater,
+        "invalid file {}",
+        filename
+      )
+    }
 
-    self.print_flush("Replacing binary file... ")?;
-    let tmp_file = tmp_dir.path().join(&format!("__{}_backup", self.bin_name));
-    Move::from_source(&new_exe)
-      .replace_using_temp(&tmp_file)
-      .to_dest(&bin_install_path)?;
     self.println("Done");
     Ok(Status::Updated(self.current_version))
+  }
+}
+
+#[cfg(windows)]
+fn install_update(path: PathBuf) -> crate::Result<()> {
+  Ok(())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn install_update(path: PathBuf) -> crate::Result<()> {
+  Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn install_update(path: PathBuf) -> crate::Result<()> {
+  Ok(())
+}
+
+fn is_download_installable(filename: String) -> bool {
+  filename.ends_with(".deb") || filename.ends_with(".exe") || filename.ends_with(".app")
+}
+
+fn is_download_valid(path: PathBuf) -> bool {
+  match path.extension() {
+    Some(ext) => {
+      let ext = ext.to_str();
+      ext == Some("gz")
+        || ext == Some("zip")
+        || is_download_installable(path.to_string_lossy().to_string())
+    }
+    None => is_download_installable(path.to_string_lossy().to_string()),
   }
 }
